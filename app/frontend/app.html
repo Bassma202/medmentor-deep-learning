@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>MedMentor AI</title>
+
+<style>
+body { margin:0; font-family:'Segoe UI'; background:#f4f6f9; }
+
+/* AUTH */
+.auth { display:flex; justify-content:center; align-items:center; height:100vh; background: url('images/skin-bg.jpg');
+            background-size: contain;}
+.auth-box { background:white; padding:30px; border-radius:15px; width:340px; text-align:center; box-shadow:0 10px 30px rgba(0,0,0,0.1);} 
+.auth input { width:100%; padding:12px; margin:10px 0; border-radius:10px; border:1px solid #ccc; }
+.auth button { width:100%; margin-top:10px; border:none; padding:10px; border-radius:10px; background:#6c63ff; color:white; cursor:pointer; }
+
+.switch-auth { margin-top:15px; cursor:pointer; color:#6c63ff; }
+
+/* APP */
+.app { display:flex; height:100vh; }
+.sidebar { width:260px; background:linear-gradient(180deg,#1f1f2e,#2d2f45); color:white; padding:15px; display:flex; flex-direction:column; }
+.chat-history { flex:1; overflow-y:auto; }
+.chat-item { padding:10px; border-radius:10px; background:rgba(255,255,255,0.1); margin-bottom:10px; cursor:pointer; display:flex; justify-content:space-between; }
+.chat-item:hover { background:rgba(255,255,255,0.2);} 
+.new-chat { padding:10px; border-radius:10px; background:#6c63ff; text-align:center; cursor:pointer; margin-bottom:15px; }
+.sidebar-footer { margin-top:auto; }
+.learn-more, .profile { padding:10px; border-radius:10px; background:rgba(255,255,255,0.1); margin-bottom:10px; cursor:pointer; }
+.profile { display:flex; align-items:center; gap:10px; }
+.avatar { width:35px; height:35px; border-radius:50%; background:#6c63ff; display:flex; align-items:center; justify-content:center; font-weight:bold; }
+
+.main { flex:1; display:flex; flex-direction:column; overflow:hidden; }
+.header { background:white; padding:40px; font-size:28px; text-align:center; font-weight:bold; }
+#content { flex:1; overflow:hidden; display:flex; flex-direction:column; min-height:0; }
+.chat { flex:1; padding:20px; overflow-y:auto; min-height:0; }
+.message { padding:10px; border-radius:10px; margin:5px 0; max-width:70%; white-space:pre-line; width:fit-content; }
+.user { background:#6c63ff; color:white; margin-left:auto; }
+.bot { background:#ddd; }
+.input-row { display:flex; gap:10px; padding:10px; background:white; }
+.plus-btn { width:40px;height:40px;border-radius:50%;background:#6c63ff;color:white;display:flex;align-items:center;justify-content:center;cursor:pointer; }
+textarea { flex:1; padding:10px; border-radius:10px; border:1px solid #ccc; }
+button.send-btn { padding:10px; border-radius:10px; border:none; background:#6c63ff; color:white; cursor:pointer; }
+#image { display:none; }
+img.preview { max-width:200px; border-radius:10px; margin-top:5px; display:block; margin-left:auto; }
+.learn-page { position:fixed; top:0; left:0; width:100%; height:100%; background:white; z-index:999; overflow:auto; padding:40px; }
+.close-btn { position:absolute; top:20px; right:20px; cursor:pointer; font-size:20px; }
+</style>
+</head>
+
+<body>
+
+<!-- AUTH -->
+<div id="authPage" class="auth">
+    <div class="auth-box">
+        <h2>🧠 MedMentor</h2>
+        <div id="authForm">
+            <input type="text" id="username" placeholder="Username">
+            <input type="password" id="password" placeholder="Password">
+            <button onclick="login()" id="authButton">Login</button>
+            
+            <div class="switch-auth" onclick="toggleAuth()">Don't have an account? Sign Up</div>
+        </div>
+    </div>
+</div>
+
+<!-- APP -->
+<div id="app" class="app" style="display:none;">
+<div class="sidebar">
+    <div class="new-chat" onclick="createNewChat()">+ New Chat</div>
+    <div class="chat-history" id="history"></div>
+
+    <div class="sidebar-footer">
+        <div class="learn-more" onclick="openLearn()">📘 Learn More</div>
+        <div class="profile">
+            <div class="avatar" id="avatar"></div>
+            <div id="usernameDisplay"></div>
+        </div>
+    </div>
+</div>
+
+<div class="main">
+    <div class="header">🩺 Skin Lesion Assistant</div>
+    <div id="content"></div>
+
+    <div id="imgPreviewBar" style="display:none; align-items:center; gap:8px; padding:6px 10px; background:white; border-top:1px solid #eee;">
+        <img id="imgThumbPreview" style="width:48px;height:48px;object-fit:cover;border-radius:8px;border:2px solid #6c63ff;" src="" alt="">
+        <span id="imgPreviewName" style="font-size:13px;color:#555;flex:1;"></span>
+        <span onclick="cancelImage()" style="cursor:pointer;color:#e55;font-size:18px;font-weight:bold;" title="Retirer">✕</span>
+    </div>
+    <div class="input-row">
+        <div class="plus-btn" onclick="document.getElementById('image').click()">+</div>
+        <textarea id="text" placeholder="Type your message..."></textarea>
+        <button class="send-btn" onclick="sendMessage()">Send</button>
+    </div>
+    <input type="file" id="image" onchange="previewImage(event)">
+</div>
+</div>
+
+<script>
+let chats = [];
+let currentChatId = null;
+let username = "";
+let selectedFile = null;
+let selectedFileDataUrl = null; // for persistence
+let isSignUp = false;
+let claudeHistory = {}; // { chatId: [{role, content}] } for conversation continuity
+
+function toggleAuth(){
+    isSignUp = !isSignUp;
+    document.getElementById('authButton').innerText = isSignUp ? 'Sign Up' : 'Login';
+    document.querySelector('.switch-auth').innerText = isSignUp
+        ? 'Already have an account? Login'
+        : 'Don\'t have an account? Sign Up';
+}
+
+function login(){
+    username = document.getElementById("username").value;
+    let password = document.getElementById("password").value;
+
+    if(!username || !password) return alert("Fill all fields");
+    
+    let url = isSignUp ? 'http://localhost:5000/signup' : 'http://localhost:5000/login';
+
+    fetch(url,{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({username,password})
+    })
+    .then(res => res.json())
+    .then(data => {
+        if(data.success){
+            startApp();
+        }else{
+            alert(data.message);
+        }
+    });
+}
+
+function startApp(){
+    document.getElementById("authPage").style.display = "none";
+    document.getElementById("app").style.display = "flex";
+
+    document.getElementById("usernameDisplay").innerText = username;
+    document.getElementById("avatar").innerText = username[0].toUpperCase();
+
+    createNewChat();
+    loadChatsFromDB();
+}
+
+// FIX: preview is now shown in the bar above the textarea (not in the chat)
+function previewImage(e){
+    let file = e.target.files[0];
+    if (!file) return;
+    selectedFile = file;
+
+    let reader = new FileReader();
+    reader.onload = function(ev) {
+        selectedFileDataUrl = ev.target.result;
+        document.getElementById('imgThumbPreview').src = selectedFileDataUrl;
+        document.getElementById('imgPreviewName').innerText = file.name;
+        document.getElementById('imgPreviewBar').style.display = 'flex';
+    };
+    reader.readAsDataURL(file);
+}
+
+function cancelImage(){
+    selectedFile = null;
+    selectedFileDataUrl = null;
+    document.getElementById('imgPreviewBar').style.display = 'none';
+    document.getElementById('imgThumbPreview').src = '';
+    document.getElementById('image').value = '';
+}
+
+function sendMessage(){
+    let text = document.getElementById("text").value;
+
+    if(!text && !selectedFile) return;
+
+    if(selectedFile){
+        // Show image bubble on the USER side (right)
+        let chatBox = document.getElementById("chat");
+        if(chatBox && selectedFileDataUrl){
+            let wrapper = document.createElement("div");
+            wrapper.style.cssText = "display:flex; justify-content:flex-end; margin:5px 0;";
+            let img = document.createElement("img");
+            img.src = selectedFileDataUrl;
+            img.className = "preview";
+            wrapper.appendChild(img);
+            chatBox.appendChild(wrapper);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+        if(text) addMessage(text, 'user');
+        sendImageToBackend(selectedFile, text);
+        cancelImage();
+    } else {
+        addMessage(text, 'user');
+        sendTextToClaude(text);
+    }
+
+    document.getElementById("text").value = "";
+}
+
+// NEW: text-only questions answered by Claude (cancer, medical questions, etc.)
+function sendTextToClaude(text){
+    if (!claudeHistory[currentChatId]) claudeHistory[currentChatId] = [];
+    let history = claudeHistory[currentChatId];
+
+    // typing indicator
+    let chatBox = document.getElementById('chat');
+    let typingDiv = document.createElement('div');
+    typingDiv.className = 'message bot';
+    typingDiv.id = 'typing-indicator';
+    typingDiv.innerText = '...';
+    chatBox.appendChild(typingDiv);
+    chatBox.scrollTop = chatBox.scrollHeight;
+
+    let messages = [
+        ...history,
+        { role: 'user', content: text }
+    ];
+
+    fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'anthropic-dangerous-direct-browser-access': 'true'
+        },
+        body: JSON.stringify({
+            model: 'claude-sonnet-4-20250514',
+            max_tokens: 1000,
+            system: 'You are MedMentor, a medical AI assistant specialized in dermatology and oncology. ALWAYS respond in English regardless of the language the user writes in. Answer questions about cancer (types, symptoms, treatments, prevention), skin lesions, and general health. Be clear, empathetic and educational. Always remind users your responses are educational and do not replace a doctor. Continue the conversation based on previous messages.',
+            messages: messages
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+        let indicator = document.getElementById('typing-indicator');
+        if(indicator) indicator.remove();
+
+        if(data.error) {
+            addMessage("API Error: " + data.error.message, 'bot');
+            return;
+        }
+
+        let reply = (data.content && data.content[0] && data.content[0].text)
+            ? data.content[0].text
+            : "Sorry, I couldn't generate a response.";
+
+        // update history for continuity
+        history.push({ role: 'user', content: text });
+        history.push({ role: 'assistant', content: reply });
+        claudeHistory[currentChatId] = history;
+
+        addMessage(reply, 'bot');
+    })
+    .catch(err => {
+        let indicator = document.getElementById('typing-indicator');
+        if(indicator) indicator.remove();
+        addMessage("⚠️ Could not reach AI. Check your connection. " + err.message, 'bot');
+    });
+}
+
+function sendImageToBackend(file, text){
+    let formData = new FormData();
+    formData.append('image', file);
+    formData.append('chatId', currentChatId);
+    formData.append('text', text);
+
+    fetch('http://localhost:5000/predict', {
+        method:'POST',
+        body:formData
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.error) {
+            addMessage("Error: " + data.error, 'bot');
+            return;
+        }
+
+        let top3Text = data.top3
+            .map(item => `- ${item.class_name} — ${item.probability}`)
+            .join('\n');
+
+        let msg =
+`Prediction: ${data.prediction_main}
+Confidence: ${data.confidence}
+Top 3:
+${top3Text}
+⚠️ Not a diagnosis.`;
+
+        addMessage(msg, 'bot');
+
+        // update claude history for continuity after image analysis
+        if (!claudeHistory[currentChatId]) claudeHistory[currentChatId] = [];
+        claudeHistory[currentChatId].push({ role: 'user', content: text || '[Image uploaded]' });
+        claudeHistory[currentChatId].push({ role: 'assistant', content: msg });
+    })
+    .catch(error => {
+        addMessage("Error contacting backend: " + error, 'bot');
+    });
+}
+
+function addMessage(text, sender){
+    let chatBox = document.getElementById('chat');
+    let div = document.createElement('div');
+    div.className = 'message ' + sender;
+    div.innerText = text;
+    chatBox.appendChild(div);
+    // FIX: auto-scroll after each message
+    chatBox.scrollTop = chatBox.scrollHeight;
+}
+
+function createNewChat(){
+    currentChatId = Date.now();
+    document.getElementById('content').innerHTML = '<div class="chat" id="chat"></div>';
+    claudeHistory[currentChatId] = [];
+}
+
+function renderHistory(){
+    let history = document.getElementById('history');
+    history.innerHTML = '';
+
+    chats.forEach(chat => {
+        let div = document.createElement('div');
+        div.className = 'chat-item';
+        div.innerHTML = `${chat.title} <span onclick=\"deleteChat(${chat.id})\">🗑️</span>`;
+        div.onclick = () => loadChat(chat.id);
+        history.appendChild(div);
+    });
+}
+
+function deleteChat(id){
+    chats = chats.filter(c => c.id !== id);
+    renderHistory();
+}
+
+function loadChat(id){
+    currentChatId = id;
+    let chat = chats.find(c => c.id === id);
+
+    let html = '<div class="chat" id="chat">';
+    chat.messages.forEach(m => {
+        // FIX: restore images from base64 stored in messages
+        if(m.imgSrc) html += `<img src="${m.imgSrc}" class="preview">`;
+        html += `<div class="message ${m.sender}">${m.text}</div>`;
+    });
+    html += '</div>';
+
+    document.getElementById('content').innerHTML = html;
+}
+
+// MongoDB backend
+function saveChatToDB(chat){
+    fetch("http://localhost:5000/save-chat",{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify(chat)
+    });
+}
+
+function loadChatsFromDB(){
+    fetch("http://localhost:5000/get-chats")
+    .then(res => res.json())
+    .then(data => {
+        chats = data;
+        renderHistory();
+    });
+}
+
+function openLearn(){
+     let learn = document.createElement("div");
+    learn.className = "learn-page";
+    learn.innerHTML = `
+        <div class="close-btn" onclick="this.parentElement.remove()">❌</div>
+        <h1>📘 Learn More</h1>
+        <p>This AI helps analyze skin lesions in an educational prototype setting.</p>
+        <ul>
+            <li>Asymmetry</li>
+            <li>Border irregularity</li>
+            <li>Color variation</li>
+            <li>Diameter</li>
+            <li>Evolving over time</li>
+        </ul>
+        <p>⚠️ This tool is not a medical diagnosis and does not replace a dermatologist.</p>
+    `;
+    document.body.appendChild(learn);
+}
+</script>
+
+</body>
+</html>

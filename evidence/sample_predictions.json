@@ -1,0 +1,82 @@
+[
+  {
+    "file": "basal_cell_carcinoma_ISIC_0024564.jpg",
+    "true_label": "basal cell carcinoma",
+    "prediction_main": "basal cell carcinoma",
+    "confidence": "97.62%",
+    "top3": [
+      {
+        "class_name": "basal cell carcinoma",
+        "probability": "97.62%"
+      },
+      {
+        "class_name": "squamous cell carcinoma",
+        "probability": "0.96%"
+      },
+      {
+        "class_name": "dermatofibroma",
+        "probability": "0.95%"
+      }
+    ]
+  },
+  {
+    "file": "vascular_lesion_ISIC_0024375.jpg",
+    "true_label": "vascular lesion",
+    "prediction_main": "vascular lesion",
+    "confidence": "99.88%",
+    "top3": [
+      {
+        "class_name": "vascular lesion",
+        "probability": "99.88%"
+      },
+      {
+        "class_name": "dermatofibroma",
+        "probability": "0.06%"
+      },
+      {
+        "class_name": "basal cell carcinoma",
+        "probability": "0.03%"
+      }
+    ]
+  },
+  {
+    "file": "dermatofibroma_ISIC_0011677.jpg",
+    "true_label": "dermatofibroma",
+    "prediction_main": "dermatofibroma",
+    "confidence": "97.37%",
+    "top3": [
+      {
+        "class_name": "dermatofibroma",
+        "probability": "97.37%"
+      },
+      {
+        "class_name": "vascular lesion",
+        "probability": "0.70%"
+      },
+      {
+        "class_name": "melanoma",
+        "probability": "0.69%"
+      }
+    ]
+  },
+  {
+    "file": "sample_actinic_keratosis_ISIC_0025605.jpg",
+    "true_label": "actinic keratosis",
+    "prediction_main": "squamous cell carcinoma",
+    "confidence": "48.18%",
+    "top3": [
+      {
+        "class_name": "squamous cell carcinoma",
+        "probability": "48.18%"
+      },
+      {
+        "class_name": "pigmented benign keratosis",
+        "probability": "32.03%"
+      },
+      {
+        "class_name": "nevus",
+        "probability": "8.59%"
+      }
+    ]
+  }
+]
